@@ -8,20 +8,49 @@ import { colors, fonts, radius } from '../../constants/theme';
 
 type LocationCardProps = {
   location: LocationItem;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
   onShare: () => void;
   onOpen: () => void;
 };
 
-export function LocationCard({ location, onShare, onOpen }: LocationCardProps) {
+export function LocationCard({
+  location,
+  isFavorite = false,
+  onToggleFavorite,
+  onShare,
+  onOpen,
+}: LocationCardProps) {
   const coords = formatCoordinates(location.latitude, location.longitude);
 
   return (
     <View style={styles.LocationCardFacetChassis}>
-      <Image
-        source={location.image}
-        style={styles.LocationCardImage}
-        resizeMode="cover"
-      />
+      <View style={styles.LocationCardImageEnclave}>
+        <Image
+          source={location.image}
+          style={styles.LocationCardImage}
+          resizeMode="cover"
+        />
+        {onToggleFavorite ? (
+          <Pressable
+            onPress={onToggleFavorite}
+            hitSlop={8}
+            style={({pressed}) => [
+              styles.LocationCardFavoritePortico,
+              pressed && styles.LocationCardButtonPressedDim,
+            ]}
+          >
+            <Text
+              style={[
+                styles.LocationCardFavoriteFiligree,
+                isFavorite && styles.LocationCardFavoriteActiveFiligree,
+              ]}
+            >
+              {isFavorite ? '★' : '☆'}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
 
       <View style={styles.LocationCardBody}>
         <View style={styles.LocationCardTopLintel}>
@@ -93,10 +122,32 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
   },
 
+  LocationCardImageEnclave: {
+    position: 'relative',
+  },
   LocationCardImage: {
     backgroundColor: '#1e2a50',
     height: 114,
     width: '100%',
+  },
+  LocationCardFavoritePortico: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(6, 9, 26, 0.72)',
+    borderRadius: 16,
+    height: 32,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    width: 32,
+  },
+  LocationCardFavoriteFiligree: {
+    color: colors.bodyMuted,
+    fontSize: 18,
+    lineHeight: 20,
+  },
+  LocationCardFavoriteActiveFiligree: {
+    color: colors.button,
   },
   LocationCardBody: {
     gap: 0,

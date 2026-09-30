@@ -1,26 +1,33 @@
-import React, { useMemo, useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import React, {useMemo, useState} from 'react';
+import {ScrollView, StatusBar, StyleSheet, Text, View} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { CategoryChips } from '../components/locations/CategoryChips';
-
-import { LocationCard } from '../components/locations/LocationCard';
 import {
-  getLocationsByCategory,
-  type LocationCategory,
-} from '../data/locations';
-import { useAppNavigation } from '../navigation/NavigationContext';
-import { colors, fonts, layout } from '../constants/theme';
-
-import { shareLocation } from '../utils/locationActions';
+  CategoryChips,
+  type LocationFilter,
+} from '../components/locations/CategoryChips';
+import {LocationCard} from '../components/locations/LocationCard';
+import {colors, fonts, layout} from '../constants/theme';
+import {getLocationsByCategory, LOCATIONS} from '../data/locations';
+import {useFavorites} from '../hooks/useFavorites';
+import {useAppNavigation} from '../navigation/NavigationContext';
+import {shareLocation} from '../utils/locationActions';
 
 export function LocationsScreen() {
   const insets = useSafeAreaInsets();
-  const { openLocationDetail } = useAppNavigation();
-  const [category, setCategory] = useState<LocationCategory>('mountains');
+  const {openLocationDetail} = useAppNavigation();
+  const {isFavorite, toggleFavorite} = useFavorites();
+  const [filter, setFilter] = useState<LocationFilter>('mountains');
 
-  const locations = useMemo(() => getLocationsByCategory(category), [category]);
+  const locations = useMemo(() => {
+    if (filter === 'favorites') {
+      return LOCATIONS.filter(location => isFavorite(location.id));
+    }
+    if (filter === 'all') {
+      return LOCATIONS;
+    }
+    return getLocationsByCategory(filter);
+  }, [filter, isFavorite]);
 
   return (
     <View style={styles.LocationsScreenFacetChassis}>
@@ -28,27 +35,37 @@ export function LocationsScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.LocationsScreenScrollContent,
-          { paddingTop: insets.top + 18 },
+          {paddingTop: insets.top + 18},
         ]}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.LocationsScreenTitleFiligree}>Locations</Text>
 
         <View style={styles.LocationsScreenChipsEnclave}>
-          <CategoryChips activeCategory={category} onSelect={setCategory} />
+          <CategoryChips activeFilter={filter} onSelect={setFilter} />
         </View>
 
         <View style={styles.LocationsScreenListLintel}>
-          {locations.map(location => (
-            <LocationCard
-              key={location.id}
-              location={location}
-              onShare={() => {
-                shareLocation(location).catch(() => undefined);
-              }}
-              onOpen={() => openLocationDetail(location.id)}
-            />
-          ))}
+          {locations.length === 0 ? (
+            <Text style={styles.LocationsScreenEmptyFiligree}>
+              {filter === 'favorites'
+                ? 'No favorites yet. Tap ★ on a location to save it here.'
+                : 'No locations in this category.'}
+            </Text>
+          ) : (
+            locations.map(location => (
+              <LocationCard
+                key={location.id}
+                location={location}
+                isFavorite={isFavorite(location.id)}
+                onToggleFavorite={() => toggleFavorite(location.id)}
+                onShare={() => {
+                  shareLocation(location).catch(() => undefined);
+                }}
+                onOpen={() => openLocationDetail(location.id)}
+              />
+            ))
+          )}
         </View>
       </ScrollView>
     </View>
@@ -73,12 +90,18 @@ const styles = StyleSheet.create({
     lineHeight: 33,
     marginBottom: 16,
   },
-
   LocationsScreenChipsEnclave: {
     marginBottom: 18,
   },
-
   LocationsScreenListLintel: {
     gap: 12,
+  },
+  LocationsScreenEmptyFiligree: {
+    color: colors.bodyMuted,
+    fontFamily: fonts.sansRegular,
+    fontSize: 13,
+    lineHeight: 20,
+    paddingVertical: 24,
+    textAlign: 'center',
   },
 });

@@ -1,31 +1,43 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 
 import {
   LOCATION_CATEGORIES,
   type LocationCategory,
 } from '../../data/locations';
+import {colors, fonts, radius} from '../../constants/theme';
 
-import { colors, fonts, radius } from '../../constants/theme';
+export type LocationFilter = LocationCategory | 'favorites' | 'all';
 
 type CategoryChipsProps = {
-  activeCategory: LocationCategory;
-  onSelect: (category: LocationCategory) => void;
+  activeFilter: LocationFilter;
+  onSelect: (filter: LocationFilter) => void;
+  showAll?: boolean;
 };
 
+const FILTERS: {id: LocationFilter; label: string}[] = [
+  ...LOCATION_CATEGORIES,
+  {id: 'favorites', label: 'Favorites'},
+];
+
 export function CategoryChips({
-  activeCategory,
+  activeFilter,
   onSelect,
+  showAll = false,
 }: CategoryChipsProps) {
+  const filters = showAll
+    ? [{id: 'all' as const, label: 'All'}, ...FILTERS]
+    : FILTERS;
+
   return (
     <View style={styles.CategoryChipsFacetChassis}>
-      {LOCATION_CATEGORIES.map(category => {
-        const isActive = category.id === activeCategory;
+      {filters.map(filter => {
+        const isActive = filter.id === activeFilter;
 
         return (
           <Pressable
-            key={category.id}
-            onPress={() => onSelect(category.id)}
+            key={filter.id}
+            onPress={() => onSelect(filter.id)}
             style={[
               styles.CategoryChipsChip,
               isActive
@@ -41,7 +53,7 @@ export function CategoryChips({
                   : styles.CategoryChipsLabelInactive,
               ]}
             >
-              {category.label}
+              {filter.label}
             </Text>
           </Pressable>
         );
@@ -56,7 +68,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
-
   CategoryChipsChip: {
     borderRadius: radius.chip,
     borderWidth: 1,
@@ -67,19 +78,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.button,
     borderColor: colors.button,
   },
-
   CategoryChipsChipInactive: {
     backgroundColor: colors.chip,
     borderColor: colors.chipBorder,
   },
-
   CategoryChipsLabelFiligree: {
     fontFamily: fonts.sansBold,
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 18,
   },
-
   CategoryChipsLabelActive: {
     color: colors.buttonText,
   },

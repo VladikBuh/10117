@@ -11,10 +11,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { icons } from '../data/assets';
-
 import { formatCoordinates, getLocationById } from '../data/locations';
+import { useFavorites } from '../hooks/useFavorites';
 import { useAppNavigation } from '../navigation/NavigationContext';
-
 import { colors, fonts, layout, radius } from '../constants/theme';
 
 type LocationDetailScreenProps = {
@@ -26,8 +25,10 @@ export function LocationDetailScreen({
 }: LocationDetailScreenProps) {
   const insets = useSafeAreaInsets();
   const { goBack, openLocationOnMap } = useAppNavigation();
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   const location = useMemo(() => getLocationById(locationId), [locationId]);
+  const favorite = location ? isFavorite(location.id) : false;
 
   if (!location) {
     return (
@@ -75,6 +76,23 @@ export function LocationDetailScreen({
           >
             {location.name}
           </Text>
+          <Pressable
+            onPress={() => toggleFavorite(location.id)}
+            hitSlop={12}
+            style={({ pressed }) => [
+              styles.LocationDetailScreenFavoritePortico,
+              pressed && styles.LocationDetailScreenPressedDim,
+            ]}
+          >
+            <Text
+              style={[
+                styles.LocationDetailScreenFavoriteFiligree,
+                favorite && styles.LocationDetailScreenFavoriteActiveFiligree,
+              ]}
+            >
+              {favorite ? '★' : '☆'}
+            </Text>
+          </Pressable>
         </View>
 
         <Image
@@ -163,6 +181,21 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     lineHeight: 33,
+  },
+  LocationDetailScreenFavoritePortico: {
+    alignItems: 'center',
+    height: 32,
+    justifyContent: 'center',
+    marginLeft: 6,
+    width: 32,
+  },
+  LocationDetailScreenFavoriteFiligree: {
+    color: colors.bodyMuted,
+    fontSize: 22,
+    lineHeight: 26,
+  },
+  LocationDetailScreenFavoriteActiveFiligree: {
+    color: colors.button,
   },
   LocationDetailScreenHeroImage: {
     backgroundColor: '#1e2a50',

@@ -17,15 +17,19 @@ import MapView, { Marker, type Region } from 'react-native-maps';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import {
+  CategoryChips,
+  type LocationFilter,
+} from '../components/locations/CategoryChips';
 import { icons } from '../data/assets';
 import {
   formatCoordinates,
+  getLocationsByCategory,
   LOCATIONS,
   type LocationItem,
 } from '../data/locations';
-
+import { useFavorites } from '../hooks/useFavorites';
 import { useAppNavigation } from '../navigation/NavigationContext';
-
 import { colors, fonts, layout, radius } from '../constants/theme';
 
 const INITIAL_REGION: Region = {
@@ -95,13 +99,25 @@ export function MapScreen() {
   const insets = useSafeAreaInsets();
   const { openLocationDetail, focusedLocationId, clearFocusedLocation } =
     useAppNavigation();
+  const { isFavorite } = useFavorites();
   const mapRef = useRef<MapView>(null);
 
+  const [filter, setFilter] = useState<LocationFilter>('all');
   const [selectedLocation, setSelectedLocation] = useState<LocationItem | null>(
     null,
   );
 
   const ignoreNextMapPress = useRef(false);
+
+  const filteredLocations = useMemo(() => {
+    if (filter === 'all') {
+      return LOCATIONS;
+    }
+    if (filter === 'favorites') {
+      return LOCATIONS.filter(location => isFavorite(location.id));
+    }
+    return getLocationsByCategory(filter);
+  }, [filter, isFavorite]);
 
   const handleMarkerPress = useCallback((location: LocationItem) => {
     ignoreNextMapPress.current = true;
@@ -117,12 +133,18 @@ export function MapScreen() {
     );
   }, []);
 
+  const handleFilterSelect = useCallback((next: LocationFilter) => {
+    setFilter(next);
+    setSelectedLocation(null);
+  }, []);
+
   useEffect(() => {
     if (!focusedLocationId) {
       return;
     }
     const location = LOCATIONS.find(l => l.id === focusedLocationId);
     if (location) {
+      setFilter('all');
       handleMarkerPress(location);
     }
     clearFocusedLocation();
@@ -144,7 +166,7 @@ export function MapScreen() {
 
   const markers = useMemo(
     () =>
-      LOCATIONS.map(location => (
+      filteredLocations.map(location => (
         <Marker
           key={location.id}
           coordinate={{
@@ -156,7 +178,7 @@ export function MapScreen() {
           tracksViewChanges={false}
         />
       )),
-    [handleMarkerPress],
+    [filteredLocations, handleMarkerPress],
   );
 
   return (
@@ -167,6 +189,13 @@ export function MapScreen() {
       >
         <View style={[styles.MapScreenHeader, { paddingTop: insets.top + 18 }]}>
           <Text style={styles.MapScreenTitleFiligree}>Map</Text>
+          <View style={styles.MapScreenFilters}>
+            <CategoryChips
+              activeFilter={filter}
+              onSelect={handleFilterSelect}
+              showAll
+            />
+          </View>
         </View>
 
         <View style={styles.MapScreenMapEnclave}>
@@ -291,6 +320,10 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     lineHeight: 33,
+  },
+
+  MapScreenFilters: {
+    marginTop: 12,
   },
 
   MapScreenMapEnclave: {

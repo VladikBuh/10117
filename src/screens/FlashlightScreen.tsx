@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Modal,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -14,61 +16,72 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppSlider } from '../components/inputs/AppSlider';
 import { colors, fonts, layout } from '../constants/theme';
 
-type FlashlightMode = 'white' | 'red' | 'sos';
+type FlashlightMode = 'white' | 'red' | 'sos' | 'beacon';
 
 const MODE_LABELS: Record<FlashlightMode, string> = {
   white: 'WHITE MODE',
   red: 'RED MODE',
   sos: 'STROBE MODE',
+  beacon: 'BEACON MODE',
 };
 
 const MODE_COLORS: Record<FlashlightMode, string> = {
   white: '#FAF8F2',
   red: '#FF2D2D',
   sos: '#FAF8F2',
+  beacon: '#FAF8F2',
 };
+
+const DARK_PANEL = '#0b0f26';
 
 export function FlashlightScreen() {
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<FlashlightMode>('white');
   const [brightness, setBrightness] = useState(1);
-  const strobeAnim = useRef(new Animated.Value(1)).current;
-  const strobeLoop = useRef<Animated.CompositeAnimation | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
 
-  const startStrobe = useCallback(() => {
+  const stopPulse = useCallback(() => {
+    pulseLoop.current?.stop();
+    pulseLoop.current = null;
+    pulseAnim.setValue(1);
+  }, [pulseAnim]);
+
+  const startSos = useCallback(() => {
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(strobeAnim, {
+        Animated.timing(pulseAnim, {
           toValue: 1,
           duration: 200,
           easing: Easing.step0,
           useNativeDriver: false,
         }),
-        Animated.timing(strobeAnim, {
+        Animated.timing(pulseAnim, {
           toValue: 0,
           duration: 200,
           easing: Easing.step0,
           useNativeDriver: false,
         }),
-        Animated.timing(strobeAnim, {
+        Animated.timing(pulseAnim, {
           toValue: 1,
           duration: 200,
           easing: Easing.step0,
           useNativeDriver: false,
         }),
-        Animated.timing(strobeAnim, {
+        Animated.timing(pulseAnim, {
           toValue: 0,
           duration: 200,
           easing: Easing.step0,
           useNativeDriver: false,
         }),
-        Animated.timing(strobeAnim, {
+        Animated.timing(pulseAnim, {
           toValue: 1,
           duration: 200,
           easing: Easing.step0,
           useNativeDriver: false,
         }),
-        Animated.timing(strobeAnim, {
+        Animated.timing(pulseAnim, {
           toValue: 0,
           duration: 600,
           easing: Easing.step0,
@@ -76,45 +89,108 @@ export function FlashlightScreen() {
         }),
       ]),
     );
-    strobeLoop.current = anim;
+    pulseLoop.current = anim;
     anim.start();
-  }, [strobeAnim]);
+  }, [pulseAnim]);
 
-  const stopStrobe = useCallback(() => {
-    strobeLoop.current?.stop();
-    strobeAnim.setValue(1);
-  }, [strobeAnim]);
+  const startBeacon = useCallback(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 450,
+          easing: Easing.step0,
+          useNativeDriver: false,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1600,
+          easing: Easing.step0,
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    pulseLoop.current = anim;
+    anim.start();
+  }, [pulseAnim]);
 
   useEffect(() => {
+    stopPulse();
     if (mode === 'sos') {
-      startStrobe();
-    } else {
-      stopStrobe();
+      startSos();
+    } else if (mode === 'beacon') {
+      startBeacon();
     }
-    return () => stopStrobe();
-  }, [mode, startStrobe, stopStrobe]);
+    return () => stopPulse();
+  }, [mode, startSos, startBeacon, stopPulse]);
 
   const selectMode = (m: FlashlightMode) => setMode(m);
+
+  const isPulsing = mode === 'sos' || mode === 'beacon';
 
   const modeSubtitle =
     mode === 'white'
       ? `White mode · ${Math.round(brightness * 100)}% brightness`
       : mode === 'red'
       ? `Red night mode · ${Math.round(brightness * 100)}% brightness`
-      : `SOS strobe · ${Math.round(brightness * 100)}% brightness`;
+      : mode === 'sos'
+      ? `SOS strobe · ${Math.round(brightness * 100)}% brightness`
+      : `Beacon · ${Math.round(brightness * 100)}% brightness`;
 
-  const panelBg =
-    mode === 'sos'
-      ? strobeAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: ['#0b0f26', MODE_COLORS.sos],
-        })
-      : MODE_COLORS[mode];
+  const panelBg = isPulsing
+    ? pulseAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [DARK_PANEL, MODE_COLORS[mode]],
+      })
+    : MODE_COLORS[mode];
 
-  const panelOpacity = mode === 'sos' ? strobeAnim : brightness;
+  const renderLightPanel = (isFullscreen: boolean) => (
+    <Animated.View
+      style={[
+        styles.FlashlightScreenPanelFacetChassis,
+        isFullscreen && styles.FlashlightScreenFullscreenPanel,
+        {
+          backgroundColor: panelBg,
+          opacity: isPulsing ? 1 : brightness,
+        },
+      ]}
+    >
+      {!isFullscreen ? (
+        <>
+          <View style={styles.FlashlightScreenPanelIconEnclave}>
+            {mode === 'white' && (
+              <Text style={styles.FlashlightScreenPanelBulbSigil}>💡</Text>
+            )}
+            {mode === 'red' && (
+              <View style={styles.FlashlightScreenPanelRedGlowEnclave}>
+                <View style={styles.FlashlightScreenPanelRedGlowCore} />
+              </View>
+            )}
+            {mode === 'sos' && (
+              <Text style={styles.FlashlightScreenPanelSosSigil}>⚠️</Text>
+            )}
+            {mode === 'beacon' && (
+              <Text style={styles.FlashlightScreenPanelSosSigil}>🔆</Text>
+            )}
+          </View>
+          <View style={styles.FlashlightScreenPanelBadgeEnclave}>
+            <Text style={styles.FlashlightScreenPanelBadgeFiligree}>
+              {MODE_LABELS[mode]}
+            </Text>
+          </View>
+          <View style={styles.FlashlightScreenPanelHintEnclave}>
+            <Text style={styles.FlashlightScreenPanelHintFiligree}>
+              Tap for full screen
+            </Text>
+          </View>
+        </>
+      ) : null}
+    </Animated.View>
+  );
 
   return (
     <View style={styles.FlashlightScreenFacetChassis}>
+      <StatusBar barStyle="light-content" />
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
@@ -132,39 +208,9 @@ export function FlashlightScreen() {
         </View>
 
         <View style={styles.FlashlightScreenPanelEnclave}>
-          <Animated.View
-            style={[
-              styles.FlashlightScreenPanelFacetChassis,
-              {
-                backgroundColor: panelBg,
-                opacity: mode === 'sos' ? 1 : brightness,
-              },
-            ]}
-          >
-            {mode === 'sos' && (
-              <Animated.View
-                style={[StyleSheet.absoluteFill, { opacity: panelOpacity }]}
-              />
-            )}
-            <View style={styles.FlashlightScreenPanelIconEnclave}>
-              {mode === 'white' && (
-                <Text style={styles.FlashlightScreenPanelBulbSigil}>💡</Text>
-              )}
-              {mode === 'red' && (
-                <View style={styles.FlashlightScreenPanelRedGlowEnclave}>
-                  <View style={styles.FlashlightScreenPanelRedGlowCore} />
-                </View>
-              )}
-              {mode === 'sos' && (
-                <Text style={styles.FlashlightScreenPanelSosSigil}>⚠️</Text>
-              )}
-            </View>
-            <View style={styles.FlashlightScreenPanelBadgeEnclave}>
-              <Text style={styles.FlashlightScreenPanelBadgeFiligree}>
-                {MODE_LABELS[mode]}
-              </Text>
-            </View>
-          </Animated.View>
+          <Pressable onPress={() => setFullscreen(true)}>
+            {renderLightPanel(false)}
+          </Pressable>
         </View>
 
         <View style={styles.FlashlightScreenBrightnessFacetChassis}>
@@ -224,8 +270,43 @@ export function FlashlightScreen() {
             icon={<Text style={styles.FlashlightScreenModeSosSigil}>⚠️</Text>}
             onPress={() => selectMode('sos')}
           />
+
+          <ModeOption
+            title="Beacon"
+            subtitle="Slow bright flashes · find me"
+            active={mode === 'beacon'}
+            titleColor={colors.button}
+            icon={<Text style={styles.FlashlightScreenModeSosSigil}>🔆</Text>}
+            onPress={() => selectMode('beacon')}
+          />
         </View>
       </ScrollView>
+
+      <Modal
+        visible={fullscreen}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setFullscreen(false)}
+      >
+        <Pressable
+          style={styles.FlashlightScreenFullscreenFacetChassis}
+          onPress={() => setFullscreen(false)}
+        >
+          <StatusBar hidden />
+          {renderLightPanel(true)}
+          <View
+            style={[
+              styles.FlashlightScreenFullscreenHintEnclave,
+              { paddingBottom: insets.bottom + 24 },
+            ]}
+            pointerEvents="none"
+          >
+            <Text style={styles.FlashlightScreenFullscreenHintFiligree}>
+              Tap to exit
+            </Text>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -327,6 +408,38 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
+  FlashlightScreenFullscreenPanel: {
+    borderRadius: 0,
+    flex: 1,
+    height: '100%',
+  },
+
+  FlashlightScreenFullscreenFacetChassis: {
+    backgroundColor: colors.surface,
+    flex: 1,
+  },
+
+  FlashlightScreenFullscreenHintEnclave: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    alignItems: 'center',
+  },
+
+  FlashlightScreenFullscreenHintFiligree: {
+    backgroundColor: 'rgba(11, 15, 38, 0.45)',
+    borderRadius: 12,
+    color: '#FAF8F2',
+    fontFamily: fonts.sansSemiBold,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    overflow: 'hidden',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+
   FlashlightScreenPanelIconEnclave: {
     alignItems: 'center',
     flex: 1,
@@ -371,6 +484,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 0.8,
+  },
+
+  FlashlightScreenPanelHintEnclave: {
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderRadius: 12,
+    bottom: 14,
+    left: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    position: 'absolute',
+  },
+
+  FlashlightScreenPanelHintFiligree: {
+    color: colors.title,
+    fontFamily: fonts.sansSemiBold,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.4,
   },
 
   FlashlightScreenBrightnessFacetChassis: {
@@ -419,6 +550,7 @@ const styles = StyleSheet.create({
   },
   FlashlightScreenModeEnclave: {
     marginTop: 16,
+    paddingBottom: 20,
     paddingHorizontal: layout.screenPadding,
   },
 
