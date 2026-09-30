@@ -21,14 +21,14 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     image: onboardingImages.step2,
     title: 'Find Amazing Locations',
     description:
-      'Browse curated destinations, explore them on the map, view GPS coordinates, and open every location in your navigation app.',
+      'Browse curated destinations, save your favorites, explore them on the map, check GPS coordinates, and open any location in your navigation app.',
     buttonLabel: 'Next',
   },
   {
     image: onboardingImages.step3,
     title: 'Useful Outdoor Tools',
     description:
-      'Stay prepared with a screen flashlight, real-time compass, mosquito repeller, and emergency animal alarm.',
+      'Stay prepared with useful checklists, a screen flashlight, a real-time compass, a mosquito repeller, and an emergency animal alarm.',
     buttonLabel: 'Continue',
   },
   {
